@@ -20,21 +20,22 @@
 ; Assembler used: C64 Studio by Georg Rottensteiner
 ; https://www.georg-rottensteiner.de/de/c64.html
 
-!to "sktp-v0.18.prg",cbm
+!to "sktp-v0.19.prg",cbm
 
 *=$0801
   ;SYS 2064
     !byte $0C,$08,$0A,$00,$9E,$20,$32,$30,$36,$34,$00,$00,$00,$00,$00
 
+;zeropage addresses used
 data_pointer   = $a7 ; $a7/$a8 adress for data
 data_pointer2  = $a8 ; $a7/$a8 adress for data
 color_pointer  = $a9 ; $a9/$aa adress for data    
 color_pointer2 = $aa ; $a9/$aa adress for data    
-mpCount        = $ab; multi purpose counter in zeropage
+mpCount        = $ab; multi purpose counter
 ;we are using mpCount for screenMetaRefresh and also 
 ;for verticalrepeatscreencode chunk as the refresh chunk
 ;is always near the end of a screen and all vrsc chunks
-;are already processed.
+;are already processed by then.
 
 jmp start
 
@@ -142,20 +143,22 @@ renewSessionID:
     lda #13
     sta $da50
     
+    ;now send the command to set the default server to wic
+    jsr sendURLPrefixToWic
+
 waitkeypressW:
     jsr $ffe4
     beq waitkeypressW
 
 sendSKTPRequest:
-    
-    ; do normal sktp request
-    jsr send_string
 
-;  jsr end
+    jsr sendSKTPCommand
+
     jsr getresponse
     rts
 
-
+renewSessionID_trampolin:
+    jmp renewSessionID
 
 downloadURL:
     jsr $e544     ; Clr screen
@@ -225,7 +228,7 @@ getresponse:
     cmp #4
     bcs illegalScreenType
     cmp #3
-    beq renewSessionID
+    beq renewSessionID_trampolin
     cmp #0
     bne parseChunk
     jsr $e544     ; Clr screen = disable on lengthdebug
@@ -249,6 +252,10 @@ illegalScreenType:
     jsr $ffd2
     lda #" "
     jsr $ffd2
+    lda #"$"
+    jsr $ffd2
+    lda sktpScreenType
+    jsr PrintHiNibble
     lda sktpScreenType
     jsr PrintLowNibble
     lda #" "
@@ -813,7 +820,7 @@ leaveWaitLoop:
     txa
     jsr getLowNibbleHex
     sta sktp_key+1
-    ;jsr $ffd2   
+    ;jsr $ffd2
     jmp sendSKTPRequest
 
 ;    lda #"*"
@@ -1001,7 +1008,7 @@ receive_sessionid:
 recsess_goread:
     jsr read_byte
 ;    jsr $ffd2
-    sta sktp_url_sess,y
+    sta cmd_default_url_sess,y
     iny 
     dex
     cpx #00
@@ -1059,23 +1066,50 @@ sess_string_next:
 
 ;--------------------------
 
-send_string:
+sendURLPrefixToWic:
+    jsr setWicToExpectDataFromC64
+
+    ;send command string to wic
+    ldy #$04
+urlprefix_countstring:  
+    iny
+    lda cmd_default_server,y
+    
+    cmp #$00
+    bne urlprefix_countstring
+    sty cmd_default_server+1       ; String länge ermitteln und in das Kommand schreiben
+    ldy #$00
+urlprefix_string_next:
+    iny
+    lda cmd_default_server-1,y
+    ;debug ausgabe
+;    jsr $ffd2
+    jsr write_byte
+    cpy cmd_default_server+1
+    bne urlprefix_string_next
+    ;lda #13
+    ;jsr $ffd2
+    rts
+
+;--------------------------
+
+sendSKTPCommand:
     jsr setWicToExpectDataFromC64
     ;send command string to wic
     ldy #$04
 countstring:    
     iny
-    lda command,y
+    lda sktp_command ,y
     cmp #$00
     bne countstring
-    sty command+1       ; String länge ermitteln und in das Command schreiben
+    sty sktp_command +1       ; String länge ermitteln und in das Command schreiben
     ldy #$00
 string_next:
     iny
-    lda command-1,y
+    lda sktp_command-1,y
     ;jsr $ffd2
     jsr write_byte
-    cpy command+1
+    cpy sktp_command+1
     bne string_next
     ;lda #13
     ;jsr $ffd2
@@ -1150,11 +1184,13 @@ numconv:
 
 startColorRAM: !text $d8
  
-command:         !text "W",$00,$00,$01
-sktp_url:        !text "http://sktpdemo.cafeobskur.de/sktp.php?s="
-sktp_url_sess:   !text "12345678901234567890123456"
-sktp_url_parm:   !text "&k="
+sktp_command:    !text "W",$00,$00,$01,"!"
 sktp_key:        !text "&r",0
+
+cmd_default_server:     !text "W",$3a,$00,$08                               ;   04
+cmd_default_url:        !text "http://sktpdemo.cafeobskur.de/sktp.php?s="   ; + 41
+cmd_default_url_sess:   !text "12345678901234567890123456"                  ; + 16
+cmd_default_url_parm:   !text "&k=",0                                       ; + 02 = 63 = $3f
 
 sess_command:    !text "W",$00,$00,$01
 sess_url:        !text "http://sktpdemo.cafeobskur.de/sktp.php?session=new&sktpv=3&type=64&username=wic64test&f=wic",0
@@ -1176,8 +1212,8 @@ sktpNettoChunkLengthH  :!text $00
 
 errormsg_IllegalScreen: !text "illegal screen type",0
 welcomeMsg:             !text "         sktp CLIENT FOR wIc64",$0d,$0d,$0d
-                        !text "              vERSION 0.18",$0d
-                        !text "          bUILT ON 2023-08-27",$0d,$0d
+                        !text "              vERSION 0.19",$0d
+                        !text "          bUILT ON 2023-09-05",$0d,$0d
                         !text "           2023 BY EMULAtHOR",$0d
                         !text $0d,$0d,$0d
                         !text " sERVER: http://sktpdemo.cafeobskur.de",$0d
