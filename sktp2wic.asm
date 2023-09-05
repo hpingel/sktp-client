@@ -91,7 +91,7 @@ endOfNODOLOMsg:
 
 printDLURLChar:
     jsr read_byte
-;    jsr printstrlp
+;    jsr ascii2screencode
     jsr $ffd2
     dec sktpChunkType
     bne printDLURLChar
@@ -383,7 +383,7 @@ handleCharRepeatChunk: ; chunk type #1
     jsr prepareStuff
 
     jsr read_byte ; char
-    jsr printstrlp
+    jsr ascii2screencode
     tax
     ldy #00
 charRepeat:
@@ -438,7 +438,7 @@ handleNormalChunk: ; chunk type 0
 chunk0_loop:
     jsr read_byte
     ;convert ascii to screencode
-    jsr printstrlp
+    jsr ascii2screencode
     tax
     ;check if reverse flag is set, if so, modify petscii values
     lda sktpChunkColor 
@@ -1147,24 +1147,14 @@ doread:
     rts
 
 ;--------------------------------------------
-;ascii to screencode
-
-printstrlp:
-    cmp #160         ;uppercase on mixed case
+ascii2screencode:
+;--------------------------------------------
+    cmp #160   ;uppercase on mixed case
     bcs conv
-    cmp #96         ;uppercase on mixed case
+    cmp #96    ;uppercase on mixed case
     bcs uppconv
-    cmp #64         ;lowercase on mixed case
+    cmp #64    ;lowercase on mixed case
     bcs conv
-    cmp #32         ;' ' character
-    beq noconv
-    cmp #33         ;: character
-    beq noconv
-    cmp #58         ;: character
-    beq noconv
-    cmp #42         ;* character
-    beq noconv
-    cmp #48         ;numbers 0-9
     jmp noconv
 conv:
     secv
@@ -1175,9 +1165,6 @@ uppconv:
 noconv:
     clc
     rts
-numconv:
-    bcc noconv
-    jmp conv
 
 ;---------------------------------
 
