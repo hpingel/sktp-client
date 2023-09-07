@@ -19,14 +19,24 @@
 ; 
 ; Assembler used: C64 Studio by Georg Rottensteiner
 ; https://www.georg-rottensteiner.de/de/c64.html
+;
+; PRG download and launch functionality is heavily inspired by the 
+; portal launch code in the "WiC64 Universal Routine" that can be
+; found here: https://www.wic64.de/downloads/
+;
 
-!to "sktp-v0.19.prg",cbm
+!to "sktp-v0.20.prg",cbm
 
 *=$0801
   ;SYS 2064
     !byte $0C,$08,$0A,$00,$9E,$20,$32,$30,$36,$34,$00,$00,$00,$00,$00
 
+
+;area for PRG loader
+safe_area = $0334   ; for load-routine
+
 ;zeropage addresses used
+tmp   = $a6
 data_pointer   = $a7 ; $a7/$a8 adress for data
 data_pointer2  = $a8 ; $a7/$a8 adress for data
 color_pointer  = $a9 ; $a9/$aa adress for data    
@@ -89,12 +99,22 @@ loopNODOLOMsg:
 endOfNODOLOMsg:    
     jsr $ffd2
 
+    lda sktpChunkType
+    sta dlurl_netto_start-3
+
+    ldy #00
 printDLURLChar:
     jsr read_byte
+    sta dlurl_netto_start,y
+;TODO ascii 2 petscii here
 ;    jsr ascii2screencode
+    iny
     jsr $ffd2
     dec sktpChunkType
     bne printDLURLChar
+
+    lda #00
+    sta dlurl_netto_start,y
 
     lda #$0d
     jsr $ffd2
@@ -103,15 +123,12 @@ printDLURLChar:
 
 printDLFilenameChar:
     jsr read_byte
-;    jsr $ffd2
+;TODO ascii 2 petscii here
+;    jsr ascii2screencode
+    jsr $ffd2
     dec sktpChunkLengthL
     bne printDLFilenameChar
-    
-waitkeypressD:
-    jsr $ffe4
-    beq waitkeypressD
-    lda #$87 ;F5 key for back
-    jmp leaveWaitLoop; send keypress
+    jmp fetchDownload
 
 start:
     ;switch to lowercase
@@ -162,7 +179,7 @@ renewSessionID_trampolin:
 
 downloadURL:
     jsr $e544     ; Clr screen
-    lda #4
+    lda #15
     jsr setBothColors
     ;switch to lowercase
     lda #14
@@ -1036,6 +1053,35 @@ setWicToSendDataToC64:
     sta $dd00 
     rts
     
+
+;--------------------------
+requestDownloadURL:
+;--------------------------
+    jsr setWicToExpectDataFromC64
+
+    ;send command string to wic
+    ldy #$04
+dl_countstring:  
+    iny
+    lda dlurl_start,y
+    
+    cmp #$00
+    bne dl_countstring
+    sty dlurl_start+1       ; String länge ermitteln und in das Kommand schreiben
+    ldy #$00
+dl_string_next:
+    iny
+    lda dlurl_start-1,y
+    ;debug ausgabe
+    ;jsr $ffd2
+    jsr write_byte
+    cpy dlurl_start+1
+    bne dl_string_next
+    ;lda #13
+    ;jsr $ffd2
+    rts
+
+
     
 ;--------------------------
 
@@ -1117,7 +1163,7 @@ string_next:
 
 ;--------------------------
 write_byte:
-
+;--------------------------
     sta $dd01        ; Bit 0..7: Userport Daten PB 0-7 schreiben
 
 dowrite:
@@ -1129,21 +1175,22 @@ dowrite:
     and #$10        ; Warten auf NMI FLAG2 = Byte wurde gelesen vom ESP
     beq dowrite
     rts
+    
 ;--------------------------
-
 read_byte:
+;--------------------------
    
 doread:
+    nop
+    nop
+    nop
+    nop
     lda $dd0d
-    nop
-    nop
-    nop
-    nop
     and #$10        ; Warten auf NMI FLAG2 = Byte wurde gelesen vom ESP
     beq doread
     
     lda $dd01 
-    sta $02
+;    sta $02 ; we don't need to write this into zeropage do we?
     rts
 
 ;--------------------------------------------
@@ -1174,7 +1221,7 @@ startColorRAM: !text $d8
 sktp_command:    !text "W",$00,$00,$01,"!"
 sktp_key:        !text "&r",0
 
-cmd_default_server:     !text "W",$3a,$00,$08                               ;   04
+cmd_default_server:     !text "W",$3f,$00,$08                               ;   04
 cmd_default_url:        !text "http://sktpdemo.cafeobskur.de/sktp.php?s="   ; + 41
 cmd_default_url_sess:   !text "12345678901234567890123456"                  ; + 16
 cmd_default_url_parm:   !text "&k=",0                                       ; + 02 = 63 = $3f
@@ -1199,8 +1246,8 @@ sktpNettoChunkLengthH  :!text $00
 
 errormsg_IllegalScreen: !text "illegal screen type",0
 welcomeMsg:             !text "         sktp CLIENT FOR wIc64",$0d,$0d,$0d
-                        !text "              vERSION 0.19",$0d
-                        !text "          bUILT ON 2023-09-05",$0d,$0d
+                        !text "              vERSION 0.20",$0d
+                        !text "          bUILT ON 2023-09-07",$0d,$0d
                         !text "           2023 BY EMULAtHOR",$0d
                         !text $0d,$0d,$0d
                         !text " sERVER: http://sktpdemo.cafeobskur.de",$0d
@@ -1209,8 +1256,91 @@ welcomeMsg:             !text "         sktp CLIENT FOR wIc64",$0d,$0d,$0d
                         !text $0d,$0d
                         !text "             pRESS ANY KEY",0
 
-nodoloMSG:              !text $0d,$0d, "tHE FILE LAUNCH FEATURE IS NOT YET",$0d,"IMPLEMENTED.",$0d
-                        !text "pRESS ANY KEY TO RETURN TO THE PREVIOUS PAGE.",$0d,$0d,0
+nodoloMSG:              !text $0d,$0d, "fILE LAUNCHING...",$0d
+                        !text "pLEASE wAIT!",$0d,$0d,0
+
+dlurl_start: !text "W",$20,$00,$01
+dlurl_netto_start: !text "h",0
+!fill 254,0
 
 end2:
   rts
+  
+fetchDownload:
+    jsr copyload
+    lda #00
+    sta tmp
+    
+lp_load:
+    jsr requestDownloadURL 
+    jsr setWicToSendDataToC64
+    jsr read_byte   ; dummy byte for triggering ESP IRQ
+    jsr read_byte   ; data length high byte
+    sta tmp     ; counter Hhigh byte
+    jsr read_byte   ; data length low byte
+    tax     ; x: counter low byte    
+
+    inc tmp     ; +1 for faster check dec/bne
+    jsr read_byte   ; loadadress low byte
+    cmp #33     ; "!" bei http Fehler (z.B. file not found oder server busy)
+    beq lp_load
+    lda #$01    ; to force load ,8 (at basic start)
+    sta data_pointer
+    jsr read_byte   ; loadadress high byte
+    lda #$08    ; to force load ,8 (at basic start)
+    sta data_pointer+1  
+    jmp safe_area   ; load program and run
+
+copyload  ldx #(read_0334_end-read_0334_start)
+-   lda read_0334_start,x ; copy load routine in safe area
+    sta safe_area,x
+    dex
+    bpl -
+    rts
+    
+read_0334_start:
+!pseudopc safe_area {
+
+;    lda #00
+;    sta $d020
+    
+;    jsr $e453 ; init vectors
+;    jsr $e3bf ; init basic ram
+;    jsr $FF8A   ;restore kernel vectors
+;    jsr $fd15 ; i/o
+;    jsr $ff5b ; init video /editor
+;    JSR $A659 ; character pointer and ckrs  
+
+    ldy #00
+
+loop_read_0334  
+handshake_0334
+    lda $dd0d
+    nop
+    nop
+    nop
+    nop       ; short delay
+    and #$10          ; wait for NMI FLAG2
+    beq handshake_0334
+    lda $dd01     ; read byte
+    sta (data_pointer),y
+;    sta $d020    ; borderflicker while loading
+    iny
+    bne +
+    inc data_pointer+1
++   dex
+    bne loop_read_0334  
+    dec tmp
+    bne loop_read_0334  ; all bytes read?
+    cli
+    JSR $A659 ; character pointer and ckrs  
+;    jsr $FDB3   ; cia
+    jsr $FDA3   ; init SID, CIA und IRQ
+;    jsr $fd50; memory
+        
+    JSR $FF40 ;RTS  ;JSR $FF81    ; screen reset
+    JMP $A7AE   ; RUN
+
+}
+read_0334_end
+
