@@ -25,7 +25,7 @@
 ; found here: https://www.wic64.de/downloads/
 ;
 
-!to "sktp-v0.20.prg",cbm
+!to "sktp-v0.21.prg",cbm
 
 *=$0801
   ;SYS 2064
@@ -222,11 +222,16 @@ getresponse:
     sta sktpScreenLengthL
 
     ;lengthdebug
+    ;jsr $e544     ; Clr screen
     ;jsr debugOutputScreenLength
 
     ;subtract one from length as this is the screen type byte
+    lda sktpScreenLengthL
+    cmp #00
+    bne jumpPositive
+    dec sktpScreenLengthH
+jumpPositive:
     dec sktpScreenLengthL
-    ;FIXME: check for negative and change Hbyte
 
     ;lengthdebug
     ;jsr debugOutputScreenLength
@@ -248,7 +253,7 @@ getresponse:
     beq renewSessionID_trampolin
     cmp #0
     bne parseChunk
-    jsr $e544     ; Clr screen = disable on lengthdebug
+;    jsr $e544     ; Clr screen = disable on lengthdebug
     
     jmp parseChunk
     
@@ -1227,7 +1232,7 @@ cmd_default_url_sess:   !text "12345678901234567890123456"                  ; + 
 cmd_default_url_parm:   !text "&k=",0                                       ; + 02 = 63 = $3f
 
 sess_command:    !text "W",$00,$00,$01
-sess_url:        !text "http://sktpdemo.cafeobskur.de/sktp.php?session=new&sktpv=3&type=64&username=wic64test&f=wic",0
+sess_url:        !text "http://sktpdemo.cafeobskur.de/sktp.php?session=new&type=64&username=wic64test&f=wic",0
 
 sktpChunk:
 sktpChunkType:    !text $00
@@ -1246,8 +1251,8 @@ sktpNettoChunkLengthH  :!text $00
 
 errormsg_IllegalScreen: !text "illegal screen type",0
 welcomeMsg:             !text "         sktp CLIENT FOR wIc64",$0d,$0d,$0d
-                        !text "              vERSION 0.20",$0d
-                        !text "          bUILT ON 2023-09-07",$0d,$0d
+                        !text "              vERSION 0.21",$0d
+                        !text "          bUILT ON 2023-09-09",$0d,$0d
                         !text "           2023 BY EMULAtHOR",$0d
                         !text $0d,$0d,$0d
                         !text " sERVER: http://sktpdemo.cafeobskur.de",$0d
