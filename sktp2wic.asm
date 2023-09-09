@@ -253,7 +253,7 @@ jumpPositive:
     beq renewSessionID_trampolin
     cmp #0
     bne parseChunk
-;    jsr $e544     ; Clr screen = disable on lengthdebug
+    jsr $e544     ; Clr screen = disable on lengthdebug
     
     jmp parseChunk
     
