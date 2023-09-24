@@ -1,4 +1,4 @@
-
+﻿
 ; SKTP (Sidekick64 transfer protocol) client 
 ; for Commodore 64 with WiC64
 ; Copyright (C) 2023  Henning Pingel
@@ -25,7 +25,19 @@
 ; found here: https://www.wic64.de/downloads/
 ;
 
-!to "sktp-v0.21.prg",cbm
+!macro sktp_server
+  !text "https://sktpdemo.cafeobskur.de"
+!end
+
+!macro build_date
+  !text "2023-09-24"
+!end
+
+!macro client_version
+  !text "0.22"
+!end
+
+!to "sktp-v0.22.prg",cbm
 
 *=$0801
   ;SYS 2064
@@ -592,10 +604,7 @@ handlePaintbrushChunk: ; chunk type 6
     ;netto : this is used to calculate if we
     ;have reached the end of the whole sktp screen
 
-    ;after prepareStuff: sktpChunkColor contains the repeat count
-    ;move it to the right place
-;    lda sktpChunkColor
-;    sta sktpChunkGap; this is the same as sktpChunkColor
+    ;sktpChunkGap is already set up (through sktpChunkColor)
     
     ;after moving the sktpChunkColor value we can now put the gap
     ;value into sktpChunkColor aka sktpChunkGap
@@ -1296,19 +1305,22 @@ noconv:
 
 ;---------------------------------
 
-
 startColorRAM: !text $d8
  
 sktp_command:    !text "W",$00,$00,$01,"!"
 sktp_key:        !text "&r",0
 
 cmd_default_server:     !text "W",$3f,$00,$08                               ;   04
-cmd_default_url:        !text "http://sktpdemo.cafeobskur.de/sktp.php?s="   ; + 41
+cmd_default_url:        +sktp_server
+
+                        !text "/sktp.php?s="   ; + 41
 cmd_default_url_sess:   !text "12345678901234567890123456"                  ; + 16
 cmd_default_url_parm:   !text "&k=",0                                       ; + 02 = 63 = $3f
 
 sess_command:    !text "W",$00,$00,$01
-sess_url:        !text "http://sktpdemo.cafeobskur.de/sktp.php?session=new&type=64&username=wic64test&f=wic",0
+sess_url:        +sktp_server
+
+                 !text "/sktp.php?session=new&type=64&username=wic64test&f=wic",0
 
 sktpChunk:
 sktpChunkType:    !text $00
@@ -1326,20 +1338,29 @@ sktpScreenLengthL:!text $00
 sktpNettoChunkLengthL  :!text $00
 sktpNettoChunkLengthH  :!text $00
 
-errormsg_IllegalScreen: !text "illegal screen type",0
-welcomeMsg:             !text "         sktp CLIENT FOR wIc64",$0d,$0d,$0d
-                        !text "              vERSION 0.21",$0d
-                        !text "          bUILT ON 2023-09-09",$0d,$0d
-                        !text "           2023 BY EMULAtHOR",$0d
-                        !text $0d,$0d,$0d
-                        !text " sERVER: http://sktpdemo.cafeobskur.de",$0d
-                        !text $0d,$0d,$0d
-                        !text "        rEQUESTING SESSION ID : ?",$0d
-                        !text $0d,$0d
-                        !text "             pRESS ANY KEY",0
+errormsg_IllegalScreen: !pet  "Illegal Screen Type",0
+welcomeMsg:             !pet  "         SKTP client for WiC64",$0d,$0d,$0d
+                        !pet  "              Version "                        
+                        +client_version
 
-nodoloMSG:              !text $0d,$0d, "fILE LAUNCHING...",$0d
-                        !text "pLEASE wAIT!",$0d,$0d,0
+                        !pet  $0d,"          "
+                        !pet "Built on "
+                        +build_date
+
+                        !pet $0d,$0d
+                        
+                        !pet  "           2023 by emulaThor",$0d
+                        !pet  $0d,$0d,$0d
+                        !pet  " Server: "
+                        +sktp_server
+
+                        !pet  $0d,$0d,$0d,$0d
+                        !pet  "        Requesting Session ID : ?",$0d
+                        !pet  $0d,$0d
+                        !pet  "             Press any key",0
+
+nodoloMSG:              !pet $0d,$0d, "File launching...",$0d
+                        !pet "Please wait!",$0d,$0d,0
 
 dlurl_start: !text "W",$20,$00,$01
 dlurl_netto_start: !text "h",0
