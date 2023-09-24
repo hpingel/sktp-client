@@ -389,7 +389,7 @@ foundValidChunkType:
     sta sktpChunkColor
     sta sktpNettoChunkLengthL
     sta sktpNettoChunkLengthH
-    sta sktpChunkRptCount
+    sta sktpChunkRptCount ;this is used by vertical repeat and paintbrush chunk
     
     jmp parseSKTPChunk
 
@@ -577,6 +577,59 @@ setCase:
     jmp endOfChunkReached
 
 ;============================================
+handlePaintbrushChunk: ; chunk type 6
+;============================================
+    jsr prepareStuff
+    ;always 6 chars + chars
+    lda #05
+    clc
+    adc sktpChunkLengthL
+    sta sktpNettoChunkLengthL
+    lda #00
+    clc
+    adc sktpChunkLengthH
+    sta sktpNettoChunkLengthH 
+    ;netto : this is used to calculate if we
+    ;have reached the end of the whole sktp screen
+
+    ;after prepareStuff: sktpChunkColor contains the repeat count
+    ;move it to the right place
+;    lda sktpChunkColor
+;    sta sktpChunkGap; this is the same as sktpChunkColor
+    
+    ;after moving the sktpChunkColor value we can now put the gap
+    ;value into sktpChunkColor aka sktpChunkGap
+    ;(paintbrush chunk has color values as its content)
+    jsr read_byte ; this is the gap value
+    sta sktpChunkRptCount
+    sta sktpChunkType ; backup repeat value
+    
+    ;the two bytes sktpChunkScrPos* can be used as helper vars
+    ;here to backup the values of sktpChunkLength*
+    ;sktpChunkScrPos* is needed to set up the color_pointer*
+    ;and afterwards it is unused
+    ;the backup means that we always know how many bytes a paintbrush
+    ;chunk is wide
+    lda sktpChunkLengthL
+    sta sktpChunkScrPosL
+    lda sktpChunkLengthH
+    sta sktpChunkScrPosH
+    
+    ;TODO: only do this backup if repeat count > 0 
+    ;in case there is a repeat count > 0 we need to be able
+    ;to find the color content again, therefore we need to
+    ;backup the color_pointer stuff. As we don't need the
+    ;data_pointer in the paintbrush chunk we can use it
+    ;for this purpose
+    lda color_pointer
+    sta data_pointer
+    lda color_pointer2
+    sta data_pointer2
+        
+    ldy #0 ; y is used to iterate over the content bytes
+    jmp handlePaintbrushChunkLoop
+
+;============================================
 parseSKTPChunkPart2:  
 ;============================================
     cmp #4
@@ -592,34 +645,58 @@ parseSKTPChunkPart2:
     rts
 
 ;============================================
-handlePaintbrushChunk: ; chunk type 6
-;============================================
-    jsr prepareStuff
-    ;always 6 chars + chars
-    lda #05
-    clc
-    adc sktpChunkLengthL
-    sta sktpNettoChunkLengthL
-    lda #00
-    clc
-    adc sktpChunkLengthH
-    sta sktpNettoChunkLengthH
-
-    jsr read_byte ; repeat count
-    sta sktpChunkRptCount
-    ldy #00
-    jmp handlePaintbrushChunkLoop
 
 handlePaintbrushChunkLoop:
     jsr read_byte
     sta (color_pointer),y
-;    sta $d800+120,y
+    tax ; backup color value in x
+    ;backup color_pointer
+    lda color_pointer2
+    sta data_pointer2
+    lda color_pointer
+    sta data_pointer    
+pbCheckForRepeat:
+    lda sktpChunkRptCount
+    cmp #0
+    ;is repeat count > zero? than care about that
+    beq pbEndOfRepeat
+    dec sktpChunkRptCount
+    lda color_pointer
+    clc
+    adc sktpChunkScrPosL ; this is the length of the paintbrush chunk (ignoring the high byte)
+    ;FIXME: care for high byte!!!!
+    sta color_pointer
+    bcc bpnovfl2
+    inc color_pointer2
+bpnovfl2:
+    clc
+    adc sktpChunkGap
+    sta color_pointer
+    bcc bpnovfl3
+    inc color_pointer2
+bpnovfl3:
+    txa
+    sta (color_pointer),y
+    tax
+    jmp pbCheckForRepeat
+
+pbEndOfRepeat:
+    ;restore color pointer from backups
+    lda data_pointer
+    sta color_pointer
+    lda data_pointer2
+    sta color_pointer2
+    lda sktpChunkType ; restore repeat value from backup
+    sta sktpChunkRptCount
+    
     iny
     
     ;is highbyte > zero? than care about that first
     lda sktpChunkLengthH
     cmp #00
     beq pbProcessOnlyLowByte
+    ;from now on we have the hassle to care for the high byte
+    ;this means printing out 255 bytes of color values
     cpy #$ff
     bne handlePaintbrushChunkLoop
     dec sktpChunkLengthH
@@ -638,7 +715,6 @@ pbProcessOnlyLowByte:
     cpy sktpChunkLengthL
     bne handlePaintbrushChunkLoop
     jmp endOfChunkReached 
-
 
 ;============================================
 handleVerticalRepeatScreencode: ; chunk type #5
@@ -892,7 +968,7 @@ prepareStuff:
 ;    lda #"/"
     
     jsr read_byte
-    sta sktpChunkColor
+    sta sktpChunkColor ;in case of paintbrush chunk this contains the gap value
     jsr screenAndColorRAMAddress
     ;byte counter
 ;    lda sktp
@@ -1240,6 +1316,7 @@ sktpChunkLengthL: !text $00
 sktpChunkLengthH: !text $00
 sktpChunkScrPosL: !text $00
 sktpChunkScrPosH: !text $00
+sktpChunkGap:
 sktpChunkColor:   !text $00
 sktpChunkRptCount:!text $00
 
