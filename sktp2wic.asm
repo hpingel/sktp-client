@@ -26,7 +26,7 @@
 ;
 
 !macro sktp_server
-  !text "https://sktpdemo.cafeobskur.de"
+  !text "http://sktpdemo.cafeobskur.de"
 !end
 
 !macro build_date
@@ -1313,9 +1313,9 @@ sktp_key:        !text "&r",0
 cmd_default_server:     !text "W",$3f,$00,$08                               ;   04
 cmd_default_url:        +sktp_server
 
-                        !text "/sktp.php?s="   ; + 41
-cmd_default_url_sess:   !text "12345678901234567890123456"                  ; + 16
-cmd_default_url_parm:   !text "&k=",0                                       ; + 02 = 63 = $3f
+                        !text "/sktp.php?s="
+cmd_default_url_sess:   !text "12345678901234567890123456"
+cmd_default_url_parm:   !text "&k=",0
 
 sess_command:    !text "W",$00,$00,$01
 sess_url:        +sktp_server
@@ -1343,14 +1343,10 @@ welcomeMsg:             !pet  "         SKTP client for WiC64",$0d,$0d,$0d
                         !pet  "              Version "                        
                         +client_version
 
-                        !pet  $0d,"          "
-                        !pet "Built on "
+                        !pet  $0d,"          Built on "
                         +build_date
 
-                        !pet $0d,$0d
-                        
-                        !pet  "           2023 by emulaThor",$0d
-                        !pet  $0d,$0d,$0d
+                        !pet  $0d,$0d,"           2023 by emulaThor",$0d,$0d,$0d,$0d
                         !pet  " Server: "
                         +sktp_server
 
