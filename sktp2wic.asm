@@ -1,4 +1,4 @@
-
+﻿
 ; SKTP (Sidekick64 transfer protocol) client 
 ; for Commodore 64 with WiC64
 ; Copyright (C) 2023  Henning Pingel
@@ -27,6 +27,7 @@
 
 !macro sktp_server
   !text "http://sktpdemo.cafeobskur.de"
+  ;!text "http://localhost"
 !end
 
 !macro build_date
@@ -485,21 +486,22 @@ chunk0_loop:
 ;============================================
 handleScreenCodeChunk: ; chunk type 2
 ;============================================
-    jsr prepNSCC
+    jsr prepNSCC ; also sets y to zero
 chunk2_loop:
     jsr read_byte
-    jsr renderCharAndColor
-    ;is highbyte > zero? than care about that first
+    jsr renderCharAndColor ; increases y
     lda sktpChunkLengthH
     cmp #00
     beq processOnlyLowByte2
-    cpy #$ff
+    ;highbyte is bigger than zero: we care about that first
+    cpy #$ff; compare y with value 255
     bne chunk2_loop ; go up and read next byte
+    ;finally we have read 255 bytes    
     jsr decAndInc
     jmp chunk2_loop
     
 processOnlyLowByte2:
-    cpy sktpChunkLengthL
+    cpy sktpChunkLengthL ; compare y with the amount of bytes to read
     bne chunk2_loop
     jmp endOfChunkReached
 
@@ -840,7 +842,7 @@ nettoLowByte:
     clc
     sbc sktpNettoChunkLengthH
     sta sktpScreenLengthH
-    inc sktpScreenLengthH ; workaround
+    inc sktpScreenLengthH ; workaround - test this line with petscii slideshow and arena/foyer
     clc
 ;    lda #"*"
 ;    jsr $ffd2
@@ -954,7 +956,7 @@ screenAndColorRAMAddress:
     rts
 
 ;============================================
-prepareStuff:
+prepareStuff: ; reads four bytes
 ;============================================
     jsr read_byte
     sta sktpChunkLengthL
