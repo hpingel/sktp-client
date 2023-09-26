@@ -1,4 +1,4 @@
-﻿
+
 ; SKTP (Sidekick64 transfer protocol) client 
 ; for Commodore 64 with WiC64
 ; Copyright (C) 2023  Henning Pingel
@@ -532,7 +532,7 @@ render0:
     lda sktpChunkLengthH
     cmp #00
     beq processOnlyLowByte0
-    cpy #$fe
+    cpy #$ff
     bne chunk0_loop
     jsr decAndInc
     jmp chunk0_loop
@@ -553,7 +553,6 @@ prepNSCC:
     sta sktpNettoChunkLengthL
     bcc noOverflow
     inc sktpNettoChunkLengthH
-    inc sktpNettoChunkLengthL
 noOverflow:
     ldy #00
     rts
@@ -597,9 +596,9 @@ handlePaintbrushChunk: ; chunk type 6
     clc
     adc sktpChunkLengthL
     sta sktpNettoChunkLengthL
-    lda #00
-    clc
-    adc sktpChunkLengthH
+;    lda #00
+;    clc
+    lda sktpChunkLengthH ; sloppy but should always be 0
     sta sktpNettoChunkLengthH 
     ;netto : this is used to calculate if we
     ;have reached the end of the whole sktp screen
@@ -836,7 +835,8 @@ nettoLowByte:
     ;subtract length of complete chunk from screen 
     lda sktpNettoChunkLengthH
     cmp #00
-    beq gohere ;if high byte is zero don't change high byte off screenlength
+    beq gohere ;if high byte is zero don't change high byte of screenlength
+    lda sktpScreenLengthH
     clc
     sbc sktpNettoChunkLengthH
     sta sktpScreenLengthH
