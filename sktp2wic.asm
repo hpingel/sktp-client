@@ -1126,6 +1126,7 @@ recsess_goread:
 
 setWicToExpectDataFromC64:
     ;we want to send a command to the wic
+    lda $dd0d     ; handshake/flag2 reset befor sending command
     lda $dd02
     ora #$04
     sta $dd02     ; Datenrichtung Port A PA2 auf Ausgang
