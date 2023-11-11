@@ -1,4 +1,4 @@
-﻿
+
 ; SKTP (Sidekick64 transfer protocol) client 
 ; for Commodore 64 with WiC64
 ; Copyright (C) 2023  Henning Pingel
@@ -420,6 +420,14 @@ handleCharRepeatChunk: ; chunk type #1
     jsr read_byte ; char
     jsr ascii2screencode
     tax
+    ;check if reverse flag is set, if so, modify screencode values
+    lda sktpChunkColor 
+    cmp #128
+    bcc endreversetest5
+    txa
+    adc #127
+    tax
+endreversetest5:    
     ldy #00
 charRepeat:
     txa
