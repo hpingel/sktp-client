@@ -149,7 +149,7 @@ start:
     jsr $ffd2
 
     jsr welcomeScreen
-   
+    jsr detectLegacyFirmware   
     
     cld ; no decimal-flag wanted
 
@@ -1154,6 +1154,39 @@ setWicToSendDataToC64:
     sta $dd00 
     rts
     
+;--------------------------
+detectLegacyFirmware: 
+;--------------------------
+    lda #$01
+    sta legacyFirmware
+    jsr setWicToExpectDataFromC64
+    ldy #$00
+
+-   lda versionStringRequest,y
+    jsr write_byte
+    iny
+    cpy #$04
+    bne -
+
+    jsr setWicToSendDataToC64
+    jsr read_byte
+
+    jsr read_byte
+    jsr read_byte
+    
+    cmp #$0d
+    bne +
+    dec legacyFirmware
+
++   tay
+-   jsr read_byte
+    dey
+    bne -
+
+    rts
+
+versionStringRequest: !byte "W", $04, $00, $00
+legacyFirmware: !byte $01
 
 ;--------------------------
 requestDownloadURL:
@@ -1234,7 +1267,17 @@ urlprefix_string_next:
     jsr write_byte
     cpy cmd_default_server+1
     bne urlprefix_string_next
-    ;lda #13
+
+    lda legacyFirmware
+    beq +
+
+    jsr setWicToSendDataToC64
+    jsr read_byte
+
+    jsr read_byte
+    jsr read_byte
+
++   ;lda #13
     ;jsr $ffd2
     rts
 
