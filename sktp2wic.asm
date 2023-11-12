@@ -31,14 +31,14 @@
 !end
 
 !macro build_date
-  !text "2023-09-24"
+  !text "2023-11-13"
 !end
 
 !macro client_version
-  !text "0.22"
+  !text "0.24"
 !end
 
-!to "sktp-v0.22.prg",cbm
+!to "sktp-v0.24.prg",cbm
 
 *=$0801
   ;SYS 2064
@@ -1382,7 +1382,10 @@ cmd_default_url_parm:   !text "&k=",0
 sess_command:    !text "W",$00,$00,$01
 sess_url:        +sktp_server
 
-                 !text "/sktp.php?session=new&type=64&username=wic64test&f=wic",0
+                 !text "/sktp.php?session=new&type=64&username=wic64test&f=wic&v="
+sess_version:    +client_version
+
+sess_end:        !text 0
 
 sktpChunk:
 sktpChunkType:    !text $00
