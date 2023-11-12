@@ -64,7 +64,7 @@ jmp start
 
 welcomeScreen:
     jsr $e544 ;clear screen
-    lda #15
+    lda #11
     jsr setBothColors
     lda #5 ; white font color
     jsr $ffd2
