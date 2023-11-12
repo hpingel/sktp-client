@@ -1,4 +1,4 @@
-
+﻿
 ; SKTP (Sidekick64 transfer protocol) client 
 ; for Commodore 64 with WiC64
 ; Copyright (C) 2023  Henning Pingel
@@ -1173,9 +1173,17 @@ detectLegacyFirmware:
 
     jsr read_byte
     jsr read_byte
-    
-    cmp #$0d
+
+    ;attempt to detect an old firmware by the firmware version string
+    ;emulators are inconsistent so we have different string lenghts depending
+    ;on who we ask. Temporary hack...
+    cmp #$0f ; kernal64 emulator with WIC64FWV:K1.0.2
+    beq thisIsLegacy
+    cmp #$02 ; vice emulation of wic64
+    beq thisIsLegacy
+    cmp #$0d ; real wic64 with old fw
     bne +
+thisIsLegacy:
     dec legacyFirmware
 
 +   tay
